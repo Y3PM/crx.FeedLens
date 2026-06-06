@@ -98,20 +98,21 @@
         width: 44px;
         height: 44px;
         padding: 0;
-        border: 1px solid rgba(61, 52, 43, 0.16);
+        border: 1px solid #e36f21;
         border-radius: 8px;
-        background: #fffaf1;
-        color: #a44a31;
-        box-shadow: 0 14px 34px rgba(66, 44, 28, 0.18);
+        background: #f47a21;
+        color: #ffffff;
+        box-shadow: 0 14px 34px rgba(164, 74, 49, 0.24);
         cursor: pointer;
       }
       #${BUTTON_ID}:hover {
-        background: #ffffff;
-        color: #8f3f2b;
+        border-color: #d86118;
+        background: #e96c18;
+        color: #ffffff;
         transform: translateY(-1px);
       }
       #${BUTTON_ID}:focus-visible {
-        outline: 2px solid rgba(154, 80, 56, 0.55);
+        outline: 2px solid rgba(244, 122, 33, 0.62);
         outline-offset: 3px;
       }
       #${BUTTON_ID} svg {
@@ -126,8 +127,9 @@
         height: 18px;
         padding: 0 5px;
         border-radius: 999px;
-        background: #314d4b;
-        color: #ffffff;
+        border: 1px solid rgba(244, 122, 33, 0.42);
+        background: #ffffff;
+        color: #d86118;
         font: 700 11px/18px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       }
       #${BUTTON_ID} span:empty {
