@@ -17,6 +17,33 @@
     "text/atom+xml",
     "text/xml"
   ];
+  const SUBSCRIBE_READERS = [
+    {
+      id: "feedly",
+      label: "Feedly",
+      url: (feedUrl) => `https://feedly.com/i/subscription/feed%2F${encodeURIComponent(feedUrl)}`
+    },
+    {
+      id: "inoreader",
+      label: "Inoreader",
+      url: (feedUrl) => `https://www.inoreader.com/feed/${encodeURIComponent(feedUrl)}`
+    },
+    {
+      id: "newsblur",
+      label: "NewsBlur",
+      url: (feedUrl) => `https://www.newsblur.com/?url=${encodeURIComponent(feedUrl)}`
+    },
+    {
+      id: "feedbin",
+      label: "Feedbin",
+      url: (feedUrl) => `https://feedbin.com/?subscribe=${encodeURIComponent(feedUrl)}`
+    },
+    {
+      id: "oldreader",
+      label: "The Old Reader",
+      url: (feedUrl) => `https://theoldreader.com/feeds/subscribe?url=${encodeURIComponent(feedUrl)}`
+    }
+  ];
 
   const state = {
     feed: null,
@@ -27,6 +54,7 @@
     listScrollTop: 0,
     listScrollLeft: 0,
     keydownBound: false,
+    documentClickBound: false,
     sourceUrl: location.href
   };
 
@@ -492,6 +520,15 @@
     }
   }
 
+  function isHttpUrl(url) {
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+      return false;
+    }
+  }
+
   function rssItems(root, channel, kind) {
     const directChannelItems = children(channel, "item");
     if (directChannelItems.length) return directChannelItems;
@@ -561,6 +598,7 @@
     const paths = {
       open: "M10 3V5H5V19H19V14H21V20C21 20.5523 20.5523 21 20 21H4C3.44772 21 3 20.5523 3 20V4C3 3.44772 3.44772 3 4 3H10ZM17.5858 5H13V3H21V11H19V6.41421L12 13.4142L10.5858 12L17.5858 5Z",
       copy: "M6.9998 6V3C6.9998 2.44772 7.44752 2 7.9998 2H19.9998C20.5521 2 20.9998 2.44772 20.9998 3V17C20.9998 17.5523 20.5521 18 19.9998 18H16.9998V20.9991C16.9998 21.5519 16.5499 22 15.993 22H4.00666C3.45059 22 3 21.5554 3 20.9991L3.0026 7.00087C3.0027 6.44811 3.45264 6 4.00942 6H6.9998ZM5.00242 8L5.00019 20H14.9998V8H5.00242ZM8.9998 6H16.9998V16H18.9998V4H8.9998V6Z",
+      add: "M11 11V5H13V11H19V13H13V19H11V13H5V11H11Z",
       rssLine: "M3 17C5.20914 17 7 18.7909 7 21H3V17ZM3 10C9.07513 10 14 14.9249 14 21H12C12 16.0294 7.97056 12 3 12V10ZM3 3C12.9411 3 21 11.0589 21 21H19C19 12.1634 11.8366 5 3 5V3Z",
       globalLine: "M12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22ZM9.71002 19.6674C8.74743 17.6259 8.15732 15.3742 8.02731 13H4.06189C4.458 16.1765 6.71639 18.7747 9.71002 19.6674ZM10.0307 13C10.1811 15.4388 10.8778 17.7297 12 19.752C13.1222 17.7297 13.8189 15.4388 13.9693 13H10.0307ZM19.9381 13H15.9727C15.8427 15.3742 15.2526 17.6259 14.29 19.6674C17.2836 18.7747 19.542 16.1765 19.9381 13ZM4.06189 11H8.02731C8.15732 8.62577 8.74743 6.37407 9.71002 4.33256C6.71639 5.22533 4.458 7.8235 4.06189 11ZM10.0307 11H13.9693C13.8189 8.56122 13.1222 6.27025 12 4.24799C10.8778 6.27025 10.1811 8.56122 10.0307 11ZM14.29 4.33256C15.2526 6.37407 15.8427 8.62577 15.9727 11H19.9381C19.542 7.8235 17.2836 5.22533 14.29 4.33256Z",
       calendarLine: "M9 1V3H15V1H17V3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H7V1H9ZM20 11H4V19H20V11ZM7 5H4V9H20V5H17V7H15V5H9V7H7V5Z"
@@ -611,7 +649,15 @@
             </dl>
           </div>
           <div class="br-feed-actions">
-            <button class="br-copy-feed" type="button" title="Copy RSS URL">${icon("copy")} <span>Copy RSS</span></button>
+            <div class="br-primary-actions">
+              <button class="br-copy-feed br-icon-button" type="button" title="Copy RSS URL" aria-label="Copy RSS URL">${icon("copy")}</button>
+              <div class="br-subscribe-menu">
+                <button class="br-subscribe-toggle" type="button" aria-haspopup="menu" aria-expanded="false">${icon("add")} <span>Subscribe</span></button>
+                <div class="br-subscribe-list" role="menu">
+                  ${subscribeMenuItems(feed.feedUrl)}
+                </div>
+              </div>
+            </div>
             <a class="br-raw-link" href="${escapeAttr(feed.rawUrl)}" target="_blank" rel="noreferrer noopener" title="View original XML">Raw XML</a>
             <span>${feed.entries.length} items</span>
           </div>
@@ -686,6 +732,20 @@
         copyOpmlCardUrl(event);
       });
     });
+  }
+
+  function subscribeMenuItems(feedUrl) {
+    const disabled = !isHttpUrl(feedUrl);
+    const readerItems = SUBSCRIBE_READERS.map((reader) => `
+      <button class="br-subscribe-item" type="button" role="menuitem" data-reader="${escapeAttr(reader.id)}" ${disabled ? "disabled" : ""}>
+        ${escapeHtml(reader.label)}
+      </button>
+    `).join("");
+
+    return `
+      ${readerItems}
+      <button class="br-subscribe-item" type="button" role="menuitem" data-reader="custom" ${disabled ? "disabled" : ""}>Custom reader</button>
+    `;
   }
 
   function opmlSection(section) {
@@ -788,10 +848,18 @@
     });
 
     document.querySelector(".br-copy-feed")?.addEventListener("click", copyFeedUrl);
+    document.querySelector(".br-subscribe-toggle")?.addEventListener("click", toggleSubscribeMenu);
+    document.querySelectorAll(".br-subscribe-item").forEach((button) => {
+      button.addEventListener("click", openSubscribeTarget);
+    });
+    if (!state.documentClickBound) {
+      document.addEventListener("click", closeSubscribeMenuOnOutsideClick);
+      state.documentClickBound = true;
+    }
     if (!state.keydownBound) {
-        document.addEventListener("keydown", onReaderKeydown);
-        state.keydownBound = true;
-      }
+      document.addEventListener("keydown", onReaderKeydown);
+      state.keydownBound = true;
+    }
   }
 
   function replaceXmlDocumentWithHtml(feed, appHtml) {
@@ -865,22 +933,84 @@
 
   async function copyFeedUrl(event) {
     const button = event.currentTarget;
-    const label = button.querySelector("span");
-    const original = label.textContent;
+    const originalLabel = button.getAttribute("aria-label") || "Copy RSS URL";
+    const originalTitle = button.getAttribute("title") || originalLabel;
 
     try {
       await copyText(state.feed.feedUrl);
-      label.textContent = "Copied";
+      button.setAttribute("aria-label", "Copied");
+      button.setAttribute("title", "Copied");
       button.classList.add("is-copied");
       window.setTimeout(() => {
-        label.textContent = original;
+        button.setAttribute("aria-label", originalLabel);
+        button.setAttribute("title", originalTitle);
         button.classList.remove("is-copied");
       }, 1400);
     } catch {
-      label.textContent = "Copy failed";
+      button.setAttribute("aria-label", "Copy failed");
+      button.setAttribute("title", "Copy failed");
       window.setTimeout(() => {
-        label.textContent = original;
+        button.setAttribute("aria-label", originalLabel);
+        button.setAttribute("title", originalTitle);
       }, 1400);
+    }
+  }
+
+  function toggleSubscribeMenu(event) {
+    event.stopPropagation();
+    const menu = event.currentTarget.closest(".br-subscribe-menu");
+    const isOpen = menu?.classList.toggle("is-open");
+    event.currentTarget.setAttribute("aria-expanded", isOpen ? "true" : "false");
+  }
+
+  function closeSubscribeMenuOnOutsideClick(event) {
+    if (event.target?.closest?.(".br-subscribe-menu")) return;
+    closeSubscribeMenu();
+  }
+
+  function closeSubscribeMenu() {
+    document.querySelectorAll(".br-subscribe-menu.is-open").forEach((menu) => {
+      menu.classList.remove("is-open");
+      menu.querySelector(".br-subscribe-toggle")?.setAttribute("aria-expanded", "false");
+    });
+  }
+
+  function openSubscribeTarget(event) {
+    const button = event.currentTarget;
+    const readerId = button.dataset.reader;
+    const targetUrl = readerId === "custom" ? customSubscribeUrl(state.feed.feedUrl) : readerSubscribeUrl(readerId, state.feed.feedUrl);
+    closeSubscribeMenu();
+    if (!targetUrl) return;
+    window.open(targetUrl, "_blank", "noopener,noreferrer");
+  }
+
+  function readerSubscribeUrl(readerId, feedUrl) {
+    return SUBSCRIBE_READERS.find((reader) => reader.id === readerId)?.url(feedUrl) || "";
+  }
+
+  function customSubscribeUrl(feedUrl) {
+    const current = loadCustomSubscribeTemplate();
+    const template = window.prompt("Custom reader URL template. Use %s for the RSS URL.\nTT-RSS example: https://rss.example.com/public.php?op=bookmarklets--subscribe&feed_url=%s", current);
+    if (!template) return "";
+    saveCustomSubscribeTemplate(template);
+    return template.includes("%s")
+      ? template.replaceAll("%s", encodeURIComponent(feedUrl))
+      : `${template}${encodeURIComponent(feedUrl)}`;
+  }
+
+  function loadCustomSubscribeTemplate() {
+    try {
+      return localStorage.getItem("feedlens:subscribe:custom") || "";
+    } catch {
+      return "";
+    }
+  }
+
+  function saveCustomSubscribeTemplate(template) {
+    try {
+      localStorage.setItem("feedlens:subscribe:custom", template);
+    } catch {
+      // Custom subscribe templates are optional; ignore storage failures.
     }
   }
 

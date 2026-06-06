@@ -107,6 +107,7 @@
 }
 
 .br-copy-feed svg,
+.br-subscribe-toggle svg,
 .br-opml-copy svg,
 .br-opml-open svg,
 .br-feed-info svg {
@@ -248,6 +249,8 @@
 }
 
 .br-copy-feed:focus-visible,
+.br-subscribe-toggle:focus-visible,
+.br-subscribe-item:focus-visible,
 .br-raw-link:focus-visible,
 .br-read-original:focus-visible,
 .br-entry:focus-visible,
@@ -264,6 +267,95 @@
 .br-copy-feed.is-copied {
   border-color: rgba(70, 125, 90, 0.32);
   color: #467d5a;
+}
+
+.br-primary-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.br-icon-button {
+  justify-content: center;
+  min-width: 40px;
+  width: 40px;
+  padding: 0;
+}
+
+.br-subscribe-menu {
+  position: relative;
+}
+
+.br-subscribe-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid rgba(61, 52, 43, 0.14);
+  border-radius: 8px;
+  background: #fffaf1;
+  color: #4c625e;
+  font: inherit;
+  cursor: pointer;
+  text-transform: none;
+}
+
+.br-subscribe-toggle:hover,
+.br-subscribe-menu.is-open .br-subscribe-toggle {
+  border-color: rgba(76, 98, 94, 0.32);
+  background: #ffffff;
+}
+
+.br-subscribe-list {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 8px);
+  left: 0;
+  display: none;
+  width: 196px;
+  padding: 6px;
+  border: 1px solid rgba(61, 52, 43, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 252, 246, 0.98);
+  box-shadow: 0 18px 42px rgba(66, 44, 28, 0.14);
+}
+
+.br-subscribe-menu.is-open .br-subscribe-list {
+  display: grid;
+  gap: 2px;
+}
+
+.br-subscribe-item {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+  width: 100%;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #544b43;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
+}
+
+.br-subscribe-item:hover {
+  background: rgba(154, 80, 56, 0.1);
+  color: #9a5038;
+}
+
+.br-subscribe-item:disabled {
+  color: #aaa19a;
+  cursor: not-allowed;
+}
+
+.br-subscribe-item:disabled:hover {
+  background: transparent;
 }
 
 .br-raw-link {
