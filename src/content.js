@@ -271,11 +271,27 @@
 
   function formatDate(date) {
     if (!date) return "";
+    const relative = relativeDateLabel(date);
+    if (relative) return relative;
     return new Intl.DateTimeFormat(undefined, {
       month: "short",
       day: "numeric",
       year: date.getFullYear() === new Date().getFullYear() ? undefined : "numeric"
     }).format(date);
+  }
+
+  function relativeDateLabel(date) {
+    const today = startOfLocalDay(new Date());
+    const target = startOfLocalDay(date);
+    const daysAgo = Math.round((today - target) / 86400000);
+    if (daysAgo < 0 || daysAgo > 7) return "";
+    if (daysAgo === 0) return "Today";
+    if (daysAgo === 1) return "Yesterday";
+    return `${daysAgo} days ago`;
+  }
+
+  function startOfLocalDay(date) {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
   }
 
   function feedLink(root, channel) {

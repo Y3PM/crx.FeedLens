@@ -1,4 +1,4 @@
-const FEED_URL_PATTERN = /(?:[?&](?:feed|format)=(?:rss|atom)|\.(?:rss|xml|atom|opml)(?:[?#]|$))/i;
+const FEED_URL_PATTERN = /(?:[?&](?:feed|format)=(?:rss|atom)|(?:^|\/)(?:feed|rss|atom|index\.xml|feed\.(?:xml|html?)|rss\.(?:xml|html?)|atom\.(?:xml|html?))(?:[?#/]|$)|\.(?:rss|xml|atom|opml)(?:[?#]|$))/i;
 const FEED_CONTENT_TYPE_PATTERN = /(?:application|text)\/(?:rss\+xml|atom\+xml|rdf\+xml|xml|x-opml|opml\+xml)|\bxml\b/i;
 const discoveredFeedsByTab = new Map();
 
@@ -132,8 +132,8 @@ async function rememberDiscoveredFeeds(tabId, feeds) {
   discoveredFeedsByTab.set(tabId, cleanFeeds);
 
   try {
-    await chrome.action.setBadgeText({ tabId, text: cleanFeeds.length > 1 ? String(cleanFeeds.length) : "RSS" });
-    await chrome.action.setBadgeBackgroundColor({ tabId, color: "#A44A31" });
+    await chrome.action.setBadgeText({ tabId, text: "RSS" });
+    await chrome.action.setBadgeBackgroundColor({ tabId, color: "#B54F2E" });
     await chrome.action.setTitle({ tabId, title: "Open RSS with FeedLens" });
   } catch {
     // Browser action state is a nice signal, but the page icon remains the primary entry.
