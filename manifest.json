@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "FeedLens - RSS Feed Preview",
+  "short_name": "FeedLens",
+  "version": "0.1.0",
+  "description": "Preview RSS, Atom, XML, and OPML feeds in a clean reader view with copy links and raw XML access.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "permissions": ["tabs", "webRequest"],
+  "host_permissions": ["http://*/*", "https://*/*", "file:///*"],
+  "action": {
+    "default_title": "FeedLens",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["src/discover.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "src/background.js"
+  }
+}
