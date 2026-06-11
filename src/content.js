@@ -1133,6 +1133,7 @@
 
     const readerFeedUrl = readerPageFeedUrl();
     if (readerFeedUrl) {
+      state.readerCss = needsInlineReaderCss() ? await loadReaderCss() : "";
       await renderFeedUrl(readerFeedUrl);
       return;
     }
@@ -1188,9 +1189,14 @@
   async function renderFeedUrl(feedUrl) {
     state.sourceUrl = feedUrl;
     const response = await fetch(feedUrl, { credentials: "omit" });
-    if (!response.ok) throw new Error(`Feed request failed: ${response.status}`);
+    if (!response.ok) {
+      renderReaderError(new Error(`Feed request failed: ${response.status}`));
+      return;
+    }
     await renderXmlText(await response.text());
-    if (!state.feed && !state.opml) throw new Error("This URL did not return a recognizable RSS, Atom, or OPML document.");
+    if (!state.feed && !state.opml) {
+      renderReaderError(new Error("This URL did not return a recognizable RSS, Atom, or OPML document."));
+    }
   }
 
   function readerPageFeedUrl() {
@@ -1233,12 +1239,12 @@
   globalThis.__feedLensTryInit = init;
   globalThis.__feedLensRenderXmlText = (xmlText) => {
     renderXmlText(xmlText).catch((error) => {
-      console.error("FeedLens failed to render fetched feed text:", error);
+      console.warn("FeedLens could not render fetched feed text:", error);
       renderReaderError(error);
     });
   };
   init().catch((error) => {
-    console.error("FeedLens failed to render this feed:", error);
+    console.warn("FeedLens could not render this feed:", error);
     renderReaderError(error);
   });
 
@@ -1246,7 +1252,44 @@
     if (location.protocol !== "chrome-extension:" || state.feed || state.opml) return;
     const feedUrl = readerPageFeedUrl() || state.sourceUrl;
     const rawUrl = rawFeedUrl(feedUrl);
-    console.warn("FeedLens could not preview this feed; returning to the original page.", error);
-    location.replace(rawUrl);
+    const sourceUrl = sourcePageUrl(feedUrl);
+    const message = normalize(error?.message || "FeedLens could not preview this feed.");
+    const appHtml = `
+      <main class="br-error-app">
+        <section class="br-error-card" role="alert">
+          <div class="br-mark">${brandIcon()}</div>
+          <p class="br-error-eyebrow">Feed unavailable</p>
+          <h1>FeedLens could not open this RSS feed</h1>
+          <p class="br-error-message">${escapeHtml(message)}</p>
+          <dl class="br-error-details">
+            <div>
+              <dt>Feed URL</dt>
+              <dd>${escapeHtml(feedUrl)}</dd>
+            </div>
+          </dl>
+          <div class="br-error-actions">
+            <a class="br-error-primary" href="${escapeAttr(sourceUrl)}">Back to site</a>
+            <a class="br-error-secondary" href="${escapeAttr(rawUrl)}" target="_blank" rel="noreferrer noopener">Open raw URL</a>
+          </div>
+        </section>
+      </main>
+    `;
+
+    ensureHtmlDocument({ title: "Feed unavailable" });
+    document.title = "Feed unavailable - FeedLens";
+    replaceBodyChildren(appHtml);
+  }
+
+  function sourcePageUrl(feedUrl) {
+    try {
+      const url = new URL(feedUrl);
+      url.hash = "";
+      const path = url.pathname.replace(/(?:^|\/)(?:feed|rss|atom|index\.xml|feed\.(?:xml|html?)|rss\.(?:xml|html?)|atom\.(?:xml|html?))(?:\/)?$/i, "/");
+      url.pathname = path || "/";
+      url.search = "";
+      return url.href;
+    } catch {
+      return "/";
+    }
   }
 })();

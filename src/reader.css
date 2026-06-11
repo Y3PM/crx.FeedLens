@@ -229,6 +229,120 @@
   color: var(--br-accent);
 }
 
+.br-error-app {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 32px 20px;
+}
+
+.br-error-card {
+  display: grid;
+  justify-items: center;
+  width: min(100%, 560px);
+  padding: 36px;
+  border: 1px solid var(--br-border);
+  border-radius: 8px;
+  background: var(--br-surface-strong);
+  box-shadow: 0 18px 48px var(--br-shadow);
+  text-align: center;
+}
+
+.br-error-card .br-mark {
+  margin-bottom: 20px;
+}
+
+.br-error-eyebrow {
+  margin: 0 0 8px;
+  color: var(--br-accent);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.br-error-card h1 {
+  margin: 0;
+  color: var(--br-ink);
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.br-error-message {
+  margin: 14px 0 0;
+  color: var(--br-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.br-error-details {
+  display: grid;
+  width: 100%;
+  margin: 24px 0 0;
+  padding: 14px;
+  border: 1px solid var(--br-border);
+  border-radius: 8px;
+  background: var(--br-surface);
+  text-align: left;
+}
+
+.br-error-details div {
+  display: grid;
+  gap: 6px;
+}
+
+.br-error-details dt {
+  color: var(--br-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.br-error-details dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--br-text);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.br-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.br-error-actions a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.br-error-primary {
+  border: 1px solid var(--br-accent);
+  background: var(--br-accent);
+  color: #ffffff;
+}
+
+.br-error-secondary {
+  border: 1px solid var(--br-border);
+  background: var(--br-surface);
+  color: var(--br-text);
+}
+
+.br-error-actions a:hover {
+  transform: translateY(-1px);
+}
+
 .br-feed-actions {
   display: flex;
   align-items: center;

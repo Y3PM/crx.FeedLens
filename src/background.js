@@ -133,7 +133,7 @@ async function rememberDiscoveredFeeds(tabId, feeds) {
 
   try {
     await chrome.action.setBadgeText({ tabId, text: "RSS" });
-    await chrome.action.setBadgeBackgroundColor({ tabId, color: "#B54F2E" });
+    await chrome.action.setBadgeBackgroundColor({ tabId, color: "#F26522" });
     await chrome.action.setTitle({ tabId, title: "Open RSS with FeedLens" });
   } catch {
     // Browser action state is a nice signal, but the page icon remains the primary entry.

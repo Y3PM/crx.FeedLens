@@ -17,8 +17,7 @@
   const BUTTON_ID = "feedlens-discover-button";
   const MENU_ID = "feedlens-discover-menu";
   const STYLE_ID = "feedlens-discover-style";
-  const INLINE_CLASS = "feedlens-discover-inline";
-  const ENHANCED_CLASS = "feedlens-discover-enhanced";
+  const BRAND_BUTTON_CLASS = "feedlens-discover-brand-button";
 
   function discoverFeeds() {
     const linkCandidates = [...document.querySelectorAll("link[href]")]
@@ -104,141 +103,140 @@
     if (!feeds.length) return;
     injectStyle();
 
-    const existing = findExistingRssElement(feeds);
-    if (existing && enhanceExistingRssElement(existing, feeds)) {
-      removeInsertedDiscoveryButtons();
-      return;
-    }
-
-    const anchor = findInlineInsertionAnchor();
-    if (anchor && mountInlineButton(feeds, anchor)) return;
+    const anchor = findBrandAnchor();
+    if (anchor && mountBrandButton(feeds, anchor.element, anchor.kind)) return;
 
     mountFloatingButton(feeds);
   }
 
-  function findExistingRssElement(feeds) {
-    const feedUrls = new Set(feeds.map((feed) => feed.url));
-    const candidates = [...document.querySelectorAll("a[href]")]
-      .map((element) => ({ element, score: rssElementScore(element, feedUrls) }))
-      .filter((candidate) => candidate.score > 0)
-      .filter((candidate) => isVisibleElement(candidate.element))
-      .sort((a, b) => b.score - a.score);
-
-    return candidates[0]?.element || null;
-  }
-
-  function rssElementScore(element, feedUrls) {
-    const href = absoluteHref(element);
-    const label = normalize([
-      element.getAttribute("aria-label"),
-      element.getAttribute("title"),
-      element.textContent,
-      element.querySelector("img")?.getAttribute("alt")
-    ].filter(Boolean).join(" "));
-    const className = String(element.className || "");
-    const hasIcon = Boolean(element.querySelector("svg, img, use")) || /rss|feed|atom/i.test(className);
-    const compact = isCompactElement(element);
-
-    if (href && feedUrls.has(href)) return compact || hasIcon ? 100 : 70;
-    if (href && FEED_HREF_PATTERN.test(href)) return compact || hasIcon ? 80 : 45;
-    if (RSS_LABEL_PATTERN.test(label) && (hasIcon || compact)) return 55;
-    return 0;
-  }
-
-  function enhanceExistingRssElement(element, feeds) {
-    if (element.classList.contains(ENHANCED_CLASS)) return true;
-    const feed = feedForElement(element, feeds);
-
-    element.classList.add(ENHANCED_CLASS);
-    if (isAnimatedRssEntry(element)) {
-      element.classList.add("feedlens-discover-enhanced-icon");
-      if (getComputedStyle(element).display === "inline") {
-        element.classList.add("feedlens-discover-enhanced-inline");
-      }
-    }
-    element.title = feeds.length > 1 ? "Choose RSS feed with FeedLens" : "Open RSS with FeedLens";
-    element.setAttribute("aria-label", element.getAttribute("aria-label") || element.title);
-    element.addEventListener("click", (event) => {
-      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-      event.preventDefault();
-      event.stopPropagation();
-      openFeedPicker(preferredFeeds(feeds, feed), element);
-    });
-    return true;
-  }
-
-  function isAnimatedRssEntry(element) {
-    if (element.querySelector("svg, img")) return true;
-    const className = String(element.className || "");
-    const text = normalize(element.textContent);
-    if (/rss|feed|atom/i.test(className) && text.length <= 12) return true;
-    return text.length <= 12 && /^(rss|atom|feed|订阅|订阅\s*rss|rss\s*订阅)$/i.test(text);
-  }
-
-  function feedForElement(element, feeds) {
-    const href = absoluteHref(element);
-    return feeds.find((feed) => feed.url === href) || feeds[0];
-  }
-
-  function findInlineInsertionAnchor() {
+  function findBrandAnchor() {
     const selectors = [
-      "header nav",
-      "header nav ul",
-      "header nav ol",
-      "header [role='navigation']",
-      "nav",
-      "nav ul",
-      "nav ol",
-      "[role='navigation']",
-      "header",
-      ".site-header",
-      ".navbar",
-      ".nav",
-      ".menu",
-      ".social",
-      ".social-links"
+      "header a[class*='logo' i]",
+      "header a[id*='logo' i]",
+      "header [class*='logo' i]",
+      "header [id*='logo' i]",
+      "header img",
+      "a[class*='logo' i]",
+      "a[id*='logo' i]",
+      "[class*='avatar' i]",
+      "[class*='site-title' i]",
+      "[class*='brand' i]",
+      "[class*='logo' i]",
+      "[id*='logo' i]",
+      "header h1",
+      "main h1",
+      "h1"
     ];
 
-    return selectors
+    const seen = new Set();
+    const candidates = selectors
       .flatMap((selector) => [...document.querySelectorAll(selector)])
-      .filter(isVisibleElement)
-      .filter(canAcceptInlineButton)
-      .sort((a, b) => insertionScore(b) - insertionScore(a))[0] || null;
+      .map((element) => brandAnchorCandidate(element))
+      .filter(Boolean)
+      .filter((candidate) => {
+        if (seen.has(candidate.element)) return false;
+        seen.add(candidate.element);
+        return true;
+      })
+      .filter((candidate) => isVisibleElement(candidate.element))
+      .filter((candidate) => canHostBrandButton(candidate.element))
+      .sort((a, b) => b.score - a.score);
+
+    return candidates[0] || null;
   }
 
-  function canAcceptInlineButton(element) {
-    if (element.closest(`#${BUTTON_ID}, .${INLINE_CLASS}, .${ENHANCED_CLASS}`)) return false;
-    const rect = element.getBoundingClientRect();
-    if (rect.width < 80 || rect.height < 20 || rect.height > 160) return false;
-    const links = element.querySelectorAll("a, button").length;
-    return links > 0 || ["NAV", "HEADER", "UL", "OL"].includes(element.tagName);
+  function brandAnchorCandidate(element) {
+    if (element.matches("img, svg")) {
+      const parent = element.closest("a, h1, [class*='logo' i], [id*='logo' i], header");
+      return parent && parent !== element ? brandAnchorCandidate(parent) : null;
+    }
+
+    const kind = brandAnchorKind(element);
+    return { element, kind, score: brandAnchorScore(element, kind) };
   }
 
-  function insertionScore(element) {
+  function brandAnchorKind(element) {
+    const className = String(element.className || "");
+    const id = String(element.id || "");
+    if (/logo|avatar|brand/i.test(`${className} ${id}`) || element.querySelector("img, svg")) return "logo";
+    return "title";
+  }
+
+  function brandAnchorScore(element, kind) {
     const tag = element.tagName;
     const className = String(element.className || "");
+    const id = String(element.id || "");
     let score = 0;
-    if (tag === "NAV") score += 40;
-    if (element.closest("header")) score += 35;
-    if (/social|share|follow/i.test(className)) score += 25;
-    if (/nav|menu|navbar/i.test(className)) score += 20;
-    score += Math.min(element.querySelectorAll("a, button").length, 8);
+    if (kind === "logo") score += 90;
+    if (tag === "H1") score += 55;
+    if (element.closest("header")) score += 60;
+    if (tag === "A") score += 30;
+    if (/logo/i.test(className) || /logo/i.test(id)) score += 55;
+    if (/brand|site-title|site_title|title/i.test(className) || /brand|site-title|site_title|title/i.test(id)) score += 35;
+    if (element.querySelector("img, svg")) score += 20;
+    if (normalize(element.textContent).length > 0) score += 10;
     return score;
   }
 
-  function mountInlineButton(feeds, anchor) {
-    if (document.querySelector(`.${INLINE_CLASS}`)) return true;
-    const button = createFeedButton(feeds, INLINE_CLASS);
-    if (anchor.matches("ul, ol")) {
-      const item = document.createElement("li");
-      item.className = "feedlens-discover-item";
-      item.append(button);
-      anchor.append(item);
-      return true;
+  function canHostBrandButton(element) {
+    if (element.closest(`#${BUTTON_ID}, .${BRAND_BUTTON_CLASS}`)) return false;
+    const rect = element.getBoundingClientRect();
+    if (rect.width < 32 || rect.height < 18 || rect.width > window.innerWidth * 0.92) return false;
+    if (rect.height > Math.max(180, window.innerHeight * 0.35)) return false;
+    if (element.matches("input, textarea, select, button, iframe, video, canvas")) return false;
+    if (element.tagName === "H1" && rect.width > Math.min(460, window.innerWidth * 0.72)) return false;
+    return true;
+  }
+
+  function mountBrandButton(feeds, anchor, kind) {
+    const existing = document.querySelector(`.${BRAND_BUTTON_CLASS}`);
+    if (existing) {
+      existing.remove();
     }
 
-    anchor.append(button);
+    const button = createFeedButton(feeds, BRAND_BUTTON_CLASS);
+    button.dataset.feedlensPlacement = kind;
+    document.documentElement.append(button);
+    if (!positionBrandButton(button, anchor)) {
+      button.remove();
+      mountFloatingButton(feeds);
+      return true;
+    }
+    window.addEventListener("resize", () => positionBrandButton(button, anchor), { passive: true });
+    window.addEventListener("scroll", () => positionBrandButton(button, anchor), { passive: true });
     return true;
+  }
+
+  function positionBrandButton(button, anchor) {
+    if (!document.documentElement.contains(button) || !document.documentElement.contains(anchor)) return false;
+
+    const rect = anchor.getBoundingClientRect();
+    const size = 24;
+    const margin = 8;
+    const gap = 8;
+
+    button.hidden = rect.bottom < margin || rect.top > window.innerHeight - margin;
+    if (button.hidden) return true;
+
+    const hasLeftRoom = rect.left >= size + gap + margin;
+    const hasRightRoom = rect.right + size + gap <= window.innerWidth - margin;
+    if (!hasLeftRoom && !hasRightRoom) {
+      button.hidden = true;
+      return false;
+    }
+
+    let top = rect.top + rect.height / 2 - size / 2;
+    let left = hasLeftRoom ? rect.left - size - gap : rect.right + gap;
+
+    top = clamp(top, margin, window.innerHeight - size - margin);
+
+    button.style.top = `${Math.round(top)}px`;
+    button.style.left = `${Math.round(left)}px`;
+    return true;
+  }
+
+  function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
   }
 
   function mountFloatingButton(feeds) {
@@ -249,18 +247,6 @@
     document.documentElement.append(button);
   }
 
-  function removeInsertedDiscoveryButtons() {
-    document.getElementById(BUTTON_ID)?.remove();
-    document.querySelectorAll(`.${INLINE_CLASS}`).forEach((button) => {
-      const item = button.closest(".feedlens-discover-item");
-      if (item && item.children.length === 1) {
-        item.remove();
-        return;
-      }
-      button.remove();
-    });
-  }
-
   function createFeedButton(feeds, className) {
     const button = document.createElement("button");
     button.type = "button";
@@ -269,7 +255,7 @@
     button.setAttribute("aria-label", button.title);
     button.innerHTML = `
       <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M3 17C5.2091 17 7 18.7909 7 21H3V17ZM3 10C9.0751 10 14 14.9249 14 21H12C12 16.0294 7.9706 12 3 12V10ZM3 3C12.9411 3 21 11.0589 21 21H19C19 12.1634 11.8366 5 3 5V3Z"></path>
+        <path d="M3 3C12.9411 3 21 11.0589 21 21H18C18 12.7157 11.2843 6 3 6V3ZM3 10C9.07513 10 14 14.9249 14 21H11C11 16.5817 7.41828 13 3 13V10ZM3 17C5.20914 17 7 18.7909 7 21H3V17Z"></path>
       </svg>
     `;
     button.addEventListener("click", (event) => {
@@ -278,11 +264,6 @@
       openFeedPicker(feeds, button);
     });
     return button;
-  }
-
-  function preferredFeeds(feeds, preferredFeed) {
-    if (!preferredFeed) return feeds;
-    return [preferredFeed].concat(feeds.filter((feed) => feed.url !== preferredFeed.url));
   }
 
   function openFeedPicker(feeds, trigger) {
@@ -373,24 +354,11 @@
     }
   }
 
-  function absoluteHref(element) {
-    try {
-      return new URL(element.getAttribute("href") || "", document.baseURI).href;
-    } catch {
-      return "";
-    }
-  }
-
   function isVisibleElement(element) {
     if (!hasVisibleStyle(element)) return false;
     if (hasVisibleBox(element)) return true;
     return [...element.querySelectorAll("svg, img, use")]
       .some((child) => hasVisibleStyle(child) && hasVisibleBox(child));
-  }
-
-  function isCompactElement(element) {
-    const rect = element.getBoundingClientRect();
-    return rect.width <= 160 && rect.height <= 80;
   }
 
   function hasVisibleStyle(element) {
@@ -419,88 +387,65 @@
         width: 44px;
         height: 44px;
         padding: 0;
-        border: 1px solid #b54f2e;
+        border: 1px solid #f26522;
         border-radius: 8px;
-        background: #b54f2e;
+        background: #f26522;
         color: #ffffff;
-        box-shadow: 0 14px 34px rgba(181, 79, 46, 0.26);
+        box-shadow: 0 14px 34px rgba(242, 101, 34, 0.26);
         cursor: pointer;
         animation: feedlens-discover-spin-rest 6.8s ease-in-out 0.8s infinite;
         transition: border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
       }
       #${BUTTON_ID}:hover {
-        border-color: #9f3f26;
-        background: #9f3f26;
+        border-color: #e65a1a;
+        background: #e65a1a;
         color: #ffffff;
         animation-play-state: paused;
         transform: translateY(-1px);
       }
       #${BUTTON_ID}:focus-visible {
-        outline: 2px solid rgba(181, 79, 46, 0.52);
+        outline: 2px solid rgba(242, 101, 34, 0.52);
         outline-offset: 3px;
       }
       #${BUTTON_ID} svg {
         width: 22px;
         height: 22px;
       }
-      .${INLINE_CLASS},
-      .${ENHANCED_CLASS} {
-        position: relative;
-      }
-      .feedlens-discover-item {
-        display: inline-flex;
-        align-items: center;
-        list-style: none;
-      }
-      .${INLINE_CLASS} {
+      .${BRAND_BUTTON_CLASS} {
+        position: fixed;
+        z-index: 2147483647;
         display: inline-grid;
         place-items: center;
-        width: 30px;
-        height: 30px;
-        margin-inline-start: 8px;
+        width: 24px;
+        height: 24px;
         padding: 0;
-        border: 1px solid rgba(181, 79, 46, 0.28);
-        border-radius: 8px;
-        background: rgba(255, 255, 255, 0.78);
-        color: #b54f2e;
-        font: inherit;
-        vertical-align: middle;
+        border: 1px solid rgba(242, 101, 34, 0.22);
+        border-radius: 999px;
+        background: #f26522;
+        color: #ffffff !important;
+        box-shadow: 0 6px 16px rgba(242, 101, 34, 0.24), 0 1px 3px rgba(42, 34, 27, 0.18);
+        font: 13px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         cursor: pointer;
         animation: feedlens-discover-spin-rest 6.8s ease-in-out 0.8s infinite;
-        transition: border-color 0.16s ease, background-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
+        transform-origin: center;
+        transition: border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease, color 0.16s ease, transform 0.16s ease;
       }
-      .${INLINE_CLASS}:hover,
-      .${ENHANCED_CLASS}:hover {
+      .${BRAND_BUTTON_CLASS}:hover {
+        border-color: rgba(230, 90, 26, 0.36);
+        background: #e65a1a;
+        color: #ffffff !important;
         animation-play-state: paused;
-        color: #9f3f26;
         transform: translateY(-1px);
+        box-shadow: 0 8px 18px rgba(242, 101, 34, 0.28), 0 1px 4px rgba(42, 34, 27, 0.2);
       }
-      .${INLINE_CLASS}:hover {
-        border-color: rgba(181, 79, 46, 0.52);
-        background: #ffffff;
-      }
-      .${INLINE_CLASS}:focus-visible,
-      .${ENHANCED_CLASS}:focus-visible {
-        outline: 2px solid rgba(181, 79, 46, 0.52);
+      .${BRAND_BUTTON_CLASS}:focus-visible {
+        outline: 2px solid rgba(242, 101, 34, 0.52);
         outline-offset: 3px;
       }
-      .${INLINE_CLASS} svg {
-        width: 17px;
-        height: 17px;
-      }
-      .${ENHANCED_CLASS} {
-        transition: color 0.16s ease, transform 0.16s ease, filter 0.16s ease;
-      }
-      .feedlens-discover-enhanced-inline {
-        display: inline-block;
-        vertical-align: middle;
-      }
-      .feedlens-discover-enhanced-icon {
-        transform-origin: center;
-        animation: feedlens-discover-spin-rest 6.8s ease-in-out 0.8s infinite;
-      }
-      .${ENHANCED_CLASS}:hover {
-        filter: drop-shadow(0 4px 10px rgba(181, 79, 46, 0.18));
+      .${BRAND_BUTTON_CLASS} svg {
+        width: 15px;
+        height: 15px;
+        transform: translate(0, -1px);
       }
       #${MENU_ID} {
         position: fixed;
@@ -562,27 +507,26 @@
       @keyframes feedlens-discover-spin-rest {
         0%, 68%, 100% {
           transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
-          box-shadow: 0 0 0 0 rgba(181, 79, 46, 0);
+          box-shadow: 0 0 0 0 rgba(242, 101, 34, 0);
           filter: saturate(1);
         }
         72% {
           transform: translate3d(0, -1px, 0) rotate(0deg) scale(1.06);
-          box-shadow: 0 0 0 5px rgba(181, 79, 46, 0.1);
+          box-shadow: 0 0 0 5px rgba(242, 101, 34, 0.1);
           filter: saturate(1.12);
         }
         82% {
           transform: translate3d(0, -1px, 0) rotate(360deg) scale(1.06);
-          box-shadow: 0 8px 18px rgba(181, 79, 46, 0.18), 0 0 0 7px rgba(181, 79, 46, 0.12);
+          box-shadow: 0 8px 18px rgba(242, 101, 34, 0.18), 0 0 0 7px rgba(242, 101, 34, 0.12);
         }
         88% {
           transform: translate3d(0, 0, 0) rotate(360deg) scale(1);
-          box-shadow: 0 0 0 0 rgba(181, 79, 46, 0);
+          box-shadow: 0 0 0 0 rgba(242, 101, 34, 0);
         }
       }
       @media (prefers-reduced-motion: reduce) {
         #${BUTTON_ID},
-        .${INLINE_CLASS},
-        .${ENHANCED_CLASS} {
+        .${BRAND_BUTTON_CLASS} {
           animation: none;
           transition: none;
         }

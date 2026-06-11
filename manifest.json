@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "FeedLens - RSS Feed Preview",
   "short_name": "FeedLens",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Preview RSS, Atom, XML, and OPML feeds in a clean reader view with copy links and raw XML access.",
   "icons": {
     "16": "icons/icon-16.png",
