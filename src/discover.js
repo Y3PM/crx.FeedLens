@@ -13,7 +13,7 @@
     "text/xml"
   ]);
   const FEED_HREF_PATTERN = /(?:^|\/)(?:feed|rss|atom|index\.xml|feed\.(?:xml|html?)|rss\.(?:xml|html?)|atom\.(?:xml|html?)|\.rss|\.atom|\.opml)(?:[?#/]|$)/i;
-  const RSS_LABEL_PATTERN = /\b(rss|atom|feed|subscribe)\b|订阅|订阅源/i;
+  const RSS_LABEL_PATTERN = /\b(rss|atom|feed)\b|订阅源|rss\s*订阅/i;
   const BUTTON_ID = "feedlens-discover-button";
   const MENU_ID = "feedlens-discover-menu";
   const STYLE_ID = "feedlens-discover-style";
@@ -41,7 +41,8 @@
 
     const isAlternate = relTokens.includes("alternate");
     const isFeedType = FEED_TYPES.has(type) || type.endsWith("+xml");
-    return (isAlternate && isFeedType) || FEED_HREF_PATTERN.test(href);
+    const label = normalize(link.getAttribute("title"));
+    return isAlternate && (isFeedType || RSS_LABEL_PATTERN.test(label) || FEED_HREF_PATTERN.test(href));
   }
 
   function feedFromLink(link) {
@@ -67,9 +68,18 @@
       anchor.textContent,
       anchor.querySelector("img")?.getAttribute("alt")
     ].filter(Boolean).join(" "));
-    const hasIcon = Boolean(anchor.querySelector("svg, img, use")) || /rss|feed|atom/i.test(String(anchor.className || ""));
+    const hasFeedIcon = /rss|feed|atom/i.test([
+      anchor.className,
+      anchor.id,
+      anchor.querySelector("svg, img, use")?.getAttribute("class"),
+      anchor.querySelector("img")?.getAttribute("src"),
+      anchor.querySelector("img")?.getAttribute("alt"),
+      anchor.querySelector("use")?.getAttribute("href"),
+      anchor.querySelector("use")?.getAttribute("xlink:href")
+    ].filter(Boolean).join(" "));
+    const hasFeedLabel = RSS_LABEL_PATTERN.test(label);
 
-    return FEED_HREF_PATTERN.test(href) || (RSS_LABEL_PATTERN.test(label) && hasIcon);
+    return (FEED_HREF_PATTERN.test(href) && (hasFeedLabel || hasFeedIcon)) || (hasFeedLabel && hasFeedIcon);
   }
 
   function feedFromAnchor(anchor) {
