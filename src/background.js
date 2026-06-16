@@ -35,7 +35,10 @@ chrome.runtime.onMessage.addListener((message, sender) => {
   }
 
   if (message.type === "FEEDLENS_OPEN_DISCOVERED_FEED" && message.feedUrl) {
-    openReader(sender.tab.id, message.feedUrl);
+    openReader(sender.tab.id, message.feedUrl, {
+      openInNewTab: message.openInNewTab,
+      openerTab: sender.tab
+    });
   }
 });
 
@@ -95,10 +98,14 @@ function isReaderUrl(url) {
 function shouldBypassReader(url) {
   try {
     const parsed = new URL(url);
-    return parsed.hash.startsWith("#feedlens=0") && parsed.protocol !== "file:";
+    return hasReaderBypassHash(parsed.hash) && parsed.protocol !== "file:";
   } catch {
     return false;
   }
+}
+
+function hasReaderBypassHash(hash) {
+  return /(?:^|[?&])feedlens=0(?:[&#]|$)/.test(hash.replace(/^#/, ""));
 }
 
 function isLikelyRssHubRoute(parsed) {
@@ -114,9 +121,26 @@ function isSourceBrowserPage(parsed) {
   return false;
 }
 
-async function openReader(tabId, url) {
+async function openReader(tabId, url, options = {}) {
   try {
     const readerUrl = chrome.runtime.getURL(`src/reader.html?feed=${encodeURIComponent(url)}`);
+    if (options.openInNewTab) {
+      const createProperties = {
+        url: readerUrl,
+        active: true,
+        openerTabId: tabId
+      };
+      if (typeof options.openerTab?.windowId === "number") {
+        createProperties.windowId = options.openerTab.windowId;
+      }
+      if (typeof options.openerTab?.index === "number") {
+        createProperties.index = options.openerTab.index + 1;
+      }
+
+      await chrome.tabs.create(createProperties);
+      return;
+    }
+
     await chrome.tabs.update(tabId, { url: readerUrl });
   } catch {
     // Some browser pages cannot be updated. Ordinary web RSS pages are handled.

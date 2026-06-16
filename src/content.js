@@ -527,13 +527,26 @@
   }
 
   function rawFeedUrl(feedUrl = location.href) {
+    return readerBypassUrl(feedUrl);
+  }
+
+  function readerBypassUrl(urlValue, fallback = location.href) {
     try {
-      const url = new URL(feedUrl);
-      url.hash = "feedlens=0";
+      const url = new URL(urlValue);
+      if (url.protocol === "http:" || url.protocol === "https:" || url.protocol === "file:") {
+        url.hash = readerBypassHash(url.hash);
+      }
       return url.href;
     } catch {
-      return location.href;
+      return fallback;
     }
+  }
+
+  function readerBypassHash(hash) {
+    const fragment = hash.replace(/^#/, "");
+    if (!fragment) return "feedlens=0";
+    if (hasReaderBypassHash(hash)) return fragment;
+    return `${fragment}&feedlens=0`;
   }
 
   function isHttpUrl(url) {
@@ -997,7 +1010,7 @@
     const targetUrl = readerId === "custom" ? customSubscribeUrl(state.feed.feedUrl) : readerSubscribeUrl(readerId, state.feed.feedUrl);
     closeSubscribeMenu();
     if (!targetUrl) return;
-    window.open(targetUrl, "_blank", "noopener,noreferrer");
+    window.open(readerBypassUrl(targetUrl, targetUrl), "_blank", "noopener,noreferrer");
   }
 
   function readerSubscribeUrl(readerId, feedUrl) {
@@ -1210,10 +1223,14 @@
 
   function shouldBypassReader() {
     try {
-      return new URL(location.href).hash === "#feedlens=0";
+      return hasReaderBypassHash(new URL(location.href).hash);
     } catch {
       return false;
     }
+  }
+
+  function hasReaderBypassHash(hash) {
+    return /(?:^|[?&])feedlens=0(?:[&#]|$)/.test(hash.replace(/^#/, ""));
   }
 
   function retryInit() {

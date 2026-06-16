@@ -550,7 +550,8 @@
       type: "FEEDLENS_OPEN_DISCOVERED_FEED",
       feedUrl: feed.url,
       pageUrl: location.href,
-      title: feed.title
+      title: feed.title,
+      openInNewTab: true
     });
   }
 
