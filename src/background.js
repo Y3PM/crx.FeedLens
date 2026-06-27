@@ -1,5 +1,6 @@
 const FEED_URL_PATTERN = /(?:[?&](?:feed|format)=(?:rss|atom)|(?:^|\/)(?:feed|rss|atom|index\.xml|feed\.(?:xml|html?)|rss\.(?:xml|html?)|atom\.(?:xml|html?))(?:[?#/]|$)|\.(?:rss|xml|atom|opml)(?:[?#]|$))/i;
 const FEED_CONTENT_TYPE_PATTERN = /(?:application|text)\/(?:rss\+xml|atom\+xml|rdf\+xml|xml|x-opml|opml\+xml)|\bxml\b/i;
+const NON_FEED_RESOURCE_EXT_PATTERN = /\.(?:css|js|mjs|map|wasm|png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf|otf|eot|mp3|mp4|webm|pdf|zip|gz|br)(?:$|[?#])/i;
 const discoveredFeedsByTab = new Map();
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
@@ -71,7 +72,11 @@ function shouldTryReaderByHeaders(details) {
   if (details.tabId < 0 || !details.url || !isHttpUrl(details.url)) return false;
   if (isReaderUrl(details.url)) return false;
   if (shouldBypassReader(details.url)) return false;
-  if (isSourceBrowserPage(new URL(details.url))) return false;
+  if (details.statusCode >= 400) return false;
+
+  const parsed = new URL(details.url);
+  if (isSourceBrowserPage(parsed)) return false;
+  if (isNonFeedResourceUrl(parsed)) return false;
 
   const contentType = responseHeader(details.responseHeaders, "content-type");
   return FEED_CONTENT_TYPE_PATTERN.test(contentType);
@@ -119,6 +124,10 @@ function isSourceBrowserPage(parsed) {
   if (host === "github.com" && parts.some((part) => sourceViews.has(part))) return true;
   if (host === "gitlab.com" && parts.includes("-") && parts.some((part) => sourceViews.has(part))) return true;
   return false;
+}
+
+function isNonFeedResourceUrl(parsed) {
+  return NON_FEED_RESOURCE_EXT_PATTERN.test(parsed.pathname);
 }
 
 async function openReader(tabId, url, options = {}) {
