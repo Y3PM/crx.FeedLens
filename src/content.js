@@ -1113,7 +1113,19 @@
 
   function entryContent(entry) {
     if (entry.content) return entry.content;
-    entry.content = entry.rawContent ? safeHtml(entry.rawContent) : `<p>${escapeHtml(entry.summary || "")}</p>`;
+    const content = entry.rawContent ? safeHtml(entry.rawContent) : `<p>${escapeHtml(entry.summary || "")}</p>`;
+    const hasReadableContent = Boolean(stripHtml(content) || /<img\b/i.test(content));
+    entry.content = hasReadableContent ? content : `
+      <div class="br-content-empty" role="note">
+        <h3>This feed does not include article content.</h3>
+        <p>Open the original article to continue reading.</p>
+        ${entry.link ? `
+          <a class="br-content-empty-action" href="${escapeAttr(entry.link)}" target="_blank" rel="noreferrer noopener">
+            ${icon("open")} <span>Read original</span>
+          </a>
+        ` : ""}
+      </div>
+    `;
     return entry.content;
   }
 

@@ -721,6 +721,41 @@
   overflow: auto;
 }
 
+.br-content-empty {
+  padding: 30px;
+  border: 1px solid var(--br-border);
+  border-radius: 10px;
+  background: var(--br-surface);
+}
+
+.br-content-empty h3 {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.3;
+}
+
+.br-content-empty p {
+  margin: 10px 0 0;
+  color: var(--br-muted);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.br-content-empty-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.br-content-empty-action svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
 .br-empty {
   display: grid;
   min-height: 70vh;
