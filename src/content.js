@@ -1213,6 +1213,14 @@
 
   async function renderFeedUrl(feedUrl) {
     state.sourceUrl = feedUrl;
+    if (globalThis.FeedLensFileAccess.isLocalFileUrl(feedUrl)) {
+      const accessState = await globalThis.FeedLensFileAccess.getFileSchemeAccessState();
+      if (accessState === false) {
+        renderFileAccessError(feedUrl);
+        return;
+      }
+    }
+
     const response = await fetch(feedUrl, { credentials: "omit" });
     if (!response.ok) {
       renderReaderError(new Error(`Feed request failed: ${response.status}`));
@@ -1307,6 +1315,60 @@
     ensureHtmlDocument({ title: "Feed unavailable" });
     document.title = "Feed unavailable - FeedLens";
     replaceBodyChildren(appHtml);
+  }
+
+  function renderFileAccessError(feedUrl) {
+    const appHtml = `
+      <main class="br-error-app">
+        <section class="br-error-card" role="alert">
+          <div class="br-mark">${brandIcon()}</div>
+          <p class="br-error-eyebrow">Local file access required</p>
+          <h1>Allow FeedLens to open local files</h1>
+          <p class="br-error-message">Chrome is blocking FeedLens from reading files stored on this computer.</p>
+          <dl class="br-error-details">
+            <div>
+              <dt>How to fix</dt>
+              <dd>Open the FeedLens extension settings and turn on “Allow access to file URLs”. Then return here and try again.</dd>
+            </div>
+            <div>
+              <dt>File URL</dt>
+              <dd>${escapeHtml(feedUrl)}</dd>
+            </div>
+          </dl>
+          <p class="br-error-status" role="status" hidden></p>
+          <div class="br-error-actions">
+            <button class="br-error-primary" type="button" data-file-access-settings>Open extension settings</button>
+            <button class="br-error-secondary" type="button" data-file-access-retry>Try again</button>
+          </div>
+        </section>
+      </main>
+    `;
+
+    ensureHtmlDocument({ title: "Local file access required" });
+    document.title = "Local file access required - FeedLens";
+    replaceBodyChildren(appHtml);
+
+    const settingsButton = document.querySelector("[data-file-access-settings]");
+    const retryButton = document.querySelector("[data-file-access-retry]");
+    const status = document.querySelector(".br-error-status");
+
+    settingsButton?.addEventListener("click", async () => {
+      settingsButton.disabled = true;
+      status.hidden = true;
+      try {
+        const response = await chrome.runtime.sendMessage({
+          type: "FEEDLENS_OPEN_FILE_ACCESS_SETTINGS"
+        });
+        if (!response?.success) throw new Error("settings unavailable");
+      } catch {
+        status.textContent = "Could not open settings automatically. Right-click FeedLens, choose Manage extension, then enable Allow access to file URLs.";
+        status.hidden = false;
+      } finally {
+        settingsButton.disabled = false;
+      }
+    });
+
+    retryButton?.addEventListener("click", () => location.reload());
   }
 
   function sourcePageUrl(feedUrl) {

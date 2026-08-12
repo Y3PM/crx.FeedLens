@@ -1,3 +1,5 @@
+importScripts("file-access.js");
+
 const FEED_URL_PATTERN = /(?:[?&](?:feed|format)=(?:rss|atom)|(?:^|\/)(?:feed|rss|atom|index\.xml|feed\.(?:xml|html?)|rss\.(?:xml|html?)|atom\.(?:xml|html?))(?:[?#/]|$)|\.(?:rss|xml|atom|opml)(?:[?#]|$))/i;
 const FEED_CONTENT_TYPE_PATTERN = /(?:application|text)\/(?:rss\+xml|atom\+xml|rdf\+xml|xml|x-opml|opml\+xml)|\bxml\b/i;
 const NON_FEED_RESOURCE_EXT_PATTERN = /\.(?:css|js|mjs|map|wasm|png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf|otf|eot|mp3|mp4|webm|pdf|zip|gz|br)(?:$|[?#])/i;
@@ -27,7 +29,14 @@ chrome.webRequest.onHeadersReceived.addListener(
   ["responseHeaders"]
 );
 
-chrome.runtime.onMessage.addListener((message, sender) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "FEEDLENS_OPEN_FILE_ACCESS_SETTINGS") {
+    openFileAccessSettings(sender.tab?.windowId)
+      .then((success) => sendResponse({ success }))
+      .catch(() => sendResponse({ success: false }));
+    return true;
+  }
+
   if (!sender.tab?.id || !message || typeof message !== "object") return;
 
   if (message.type === "FEEDLENS_DISCOVERED_FEEDS") {
@@ -153,6 +162,30 @@ async function openReader(tabId, url, options = {}) {
     await chrome.tabs.update(tabId, { url: readerUrl });
   } catch {
     // Some browser pages cannot be updated. Ordinary web RSS pages are handled.
+  }
+}
+
+async function openFileAccessSettings(windowId) {
+  const createProperties = {
+    url: globalThis.FeedLensFileAccess.extensionSettingsUrl(chrome.runtime),
+    active: true
+  };
+  if (typeof windowId === "number") {
+    createProperties.windowId = windowId;
+  }
+
+  try {
+    await chrome.tabs.create(createProperties);
+    return true;
+  } catch {
+    if (!Object.prototype.hasOwnProperty.call(createProperties, "windowId")) return false;
+    delete createProperties.windowId;
+    try {
+      await chrome.tabs.create(createProperties);
+      return true;
+    } catch {
+      return false;
+    }
   }
 }
 

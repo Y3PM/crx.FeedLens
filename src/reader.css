@@ -277,6 +277,7 @@
 
 .br-error-details {
   display: grid;
+  gap: 14px;
   width: 100%;
   margin: 24px 0 0;
   padding: 14px;
@@ -316,15 +317,24 @@
   margin-top: 24px;
 }
 
-.br-error-actions a {
+.br-error-actions a,
+.br-error-actions button {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   min-height: 38px;
   padding: 0 14px;
   border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
   font-size: 13px;
   font-weight: 750;
   text-decoration: none;
+}
+
+.br-error-actions button:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 .br-error-primary {
@@ -339,8 +349,17 @@
   color: var(--br-text);
 }
 
-.br-error-actions a:hover {
+.br-error-actions a:hover,
+.br-error-actions button:hover:not(:disabled) {
   transform: translateY(-1px);
+}
+
+.br-error-status {
+  width: 100%;
+  margin: 14px 0 0;
+  color: var(--br-muted);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .br-feed-actions {

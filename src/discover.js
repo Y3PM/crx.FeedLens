@@ -2,29 +2,15 @@
   if (globalThis.__feedLensDiscoverBootstrapped) return;
   globalThis.__feedLensDiscoverBootstrapped = true;
 
-  const FEED_TYPES = new Set([
-    "application/rss+xml",
-    "application/atom+xml",
-    "application/rdf+xml",
-    "application/feed+xml",
-    "application/xml",
-    "text/rss+xml",
-    "text/atom+xml",
-    "text/xml"
-  ]);
-  const FEED_HREF_PATTERN = /(?:^|\/)(?:feed|rss|atom|index\.xml|feed\.(?:xml|html?)|rss\.(?:xml|html?)|atom\.(?:xml|html?)|\.rss|\.atom|\.opml)(?:[?#/]|$)/i;
-  const RSS_LABEL_PATTERN = /\b(rss|atom|feed)\b|订阅源|rss\s*订阅/i;
   const BUTTON_ID = "feedlens-discover-button";
   const MENU_ID = "feedlens-discover-menu";
   const STYLE_ID = "feedlens-discover-style";
-  const BRAND_BUTTON_CLASS = "feedlens-discover-brand-button";
 
   function discoverFeeds() {
     const linkCandidates = [...document.querySelectorAll("link[href]")]
       .filter(isFeedLink)
       .map(feedFromLink)
       .filter(Boolean);
-
     const anchorCandidates = [...document.querySelectorAll("a[href]")]
       .filter(isFeedAnchor)
       .map(feedFromAnchor)
@@ -34,15 +20,11 @@
   }
 
   function isFeedLink(link) {
-    const relTokens = (link.getAttribute("rel") || "").toLowerCase().split(/\s+/);
-    const type = (link.getAttribute("type") || "").toLowerCase().trim();
-    const href = link.getAttribute("href") || "";
-    if (!href) return false;
-
-    const isAlternate = relTokens.includes("alternate");
-    const isFeedType = FEED_TYPES.has(type) || type.endsWith("+xml");
-    const label = normalize(link.getAttribute("title"));
-    return isAlternate && (isFeedType || RSS_LABEL_PATTERN.test(label) || FEED_HREF_PATTERN.test(href));
+    return globalThis.FeedLensFeedDiscovery.isCanonicalFeedLink({
+      rel: link.getAttribute("rel"),
+      type: link.getAttribute("type"),
+      href: link.getAttribute("href")
+    });
   }
 
   function feedFromLink(link) {
@@ -59,27 +41,14 @@
   }
 
   function isFeedAnchor(anchor) {
-    const href = anchor.getAttribute("href") || "";
-    if (!href || href.startsWith("#")) return false;
-
-    const label = normalize([
-      anchor.getAttribute("aria-label"),
-      anchor.getAttribute("title"),
-      anchor.textContent,
-      anchor.querySelector("img")?.getAttribute("alt")
-    ].filter(Boolean).join(" "));
-    const hasFeedIcon = /rss|feed|atom/i.test([
-      anchor.className,
-      anchor.id,
-      anchor.querySelector("svg, img, use")?.getAttribute("class"),
-      anchor.querySelector("img")?.getAttribute("src"),
-      anchor.querySelector("img")?.getAttribute("alt"),
-      anchor.querySelector("use")?.getAttribute("href"),
-      anchor.querySelector("use")?.getAttribute("xlink:href")
-    ].filter(Boolean).join(" "));
-    const hasFeedLabel = RSS_LABEL_PATTERN.test(label);
-
-    return (FEED_HREF_PATTERN.test(href) && (hasFeedLabel || hasFeedIcon)) || (hasFeedLabel && hasFeedIcon);
+    return globalThis.FeedLensFeedDiscovery.isDeclaredFeedAnchor({
+      href: anchor.getAttribute("href"),
+      text: anchor.textContent,
+      ariaLabel: anchor.getAttribute("aria-label"),
+      title: anchor.getAttribute("title"),
+      className: anchor.className,
+      id: anchor.id
+    });
   }
 
   function feedFromAnchor(anchor) {
@@ -112,155 +81,20 @@
   function mountDiscoveryEntry(feeds) {
     if (!feeds.length) return;
     injectStyle();
-
-    const anchor = findBrandAnchor();
-    if (anchor && mountBrandButton(feeds, anchor.element, anchor.kind)) return;
-
     mountFloatingButton(feeds);
-  }
-
-  function findBrandAnchor() {
-    const selectors = [
-      "header a[class*='logo' i]",
-      "header a[id*='logo' i]",
-      "header [class*='logo' i]",
-      "header [id*='logo' i]",
-      "header img",
-      "a[class*='logo' i]",
-      "a[id*='logo' i]",
-      "[class*='avatar' i]",
-      "[class*='site-title' i]",
-      "[class*='brand' i]",
-      "[class*='logo' i]",
-      "[id*='logo' i]",
-      "header h1",
-      "main h1",
-      "h1"
-    ];
-
-    const seen = new Set();
-    const candidates = selectors
-      .flatMap((selector) => [...document.querySelectorAll(selector)])
-      .map((element) => brandAnchorCandidate(element))
-      .filter(Boolean)
-      .filter((candidate) => {
-        if (seen.has(candidate.element)) return false;
-        seen.add(candidate.element);
-        return true;
-      })
-      .filter((candidate) => isVisibleElement(candidate.element))
-      .filter((candidate) => canHostBrandButton(candidate.element))
-      .sort((a, b) => b.score - a.score);
-
-    return candidates[0] || null;
-  }
-
-  function brandAnchorCandidate(element) {
-    if (element.matches("img, svg")) {
-      const parent = element.closest("a, h1, [class*='logo' i], [id*='logo' i], header");
-      return parent && parent !== element ? brandAnchorCandidate(parent) : null;
-    }
-
-    const kind = brandAnchorKind(element);
-    return { element, kind, score: brandAnchorScore(element, kind) };
-  }
-
-  function brandAnchorKind(element) {
-    const className = String(element.className || "");
-    const id = String(element.id || "");
-    if (/logo|avatar|brand/i.test(`${className} ${id}`) || element.querySelector("img, svg")) return "logo";
-    return "title";
-  }
-
-  function brandAnchorScore(element, kind) {
-    const tag = element.tagName;
-    const className = String(element.className || "");
-    const id = String(element.id || "");
-    let score = 0;
-    if (kind === "logo") score += 90;
-    if (tag === "H1") score += 55;
-    if (element.closest("header")) score += 60;
-    if (tag === "A") score += 30;
-    if (/logo/i.test(className) || /logo/i.test(id)) score += 55;
-    if (/brand|site-title|site_title|title/i.test(className) || /brand|site-title|site_title|title/i.test(id)) score += 35;
-    if (element.querySelector("img, svg")) score += 20;
-    if (normalize(element.textContent).length > 0) score += 10;
-    return score;
-  }
-
-  function canHostBrandButton(element) {
-    if (element.closest(`#${BUTTON_ID}, .${BRAND_BUTTON_CLASS}`)) return false;
-    const rect = element.getBoundingClientRect();
-    if (rect.width < 32 || rect.height < 18 || rect.width > window.innerWidth * 0.92) return false;
-    if (rect.height > Math.max(180, window.innerHeight * 0.35)) return false;
-    if (element.matches("input, textarea, select, button, iframe, video, canvas")) return false;
-    if (element.tagName === "H1" && rect.width > Math.min(460, window.innerWidth * 0.72)) return false;
-    return true;
-  }
-
-  function mountBrandButton(feeds, anchor, kind) {
-    const existing = document.querySelector(`.${BRAND_BUTTON_CLASS}`);
-    if (existing) {
-      existing.remove();
-    }
-
-    const button = createFeedButton(feeds, BRAND_BUTTON_CLASS);
-    button.dataset.feedlensPlacement = kind;
-    document.documentElement.append(button);
-    if (!positionBrandButton(button, anchor)) {
-      button.remove();
-      mountFloatingButton(feeds);
-      return true;
-    }
-    window.addEventListener("resize", () => positionBrandButton(button, anchor), { passive: true });
-    window.addEventListener("scroll", () => positionBrandButton(button, anchor), { passive: true });
-    return true;
-  }
-
-  function positionBrandButton(button, anchor) {
-    if (!document.documentElement.contains(button) || !document.documentElement.contains(anchor)) return false;
-
-    const rect = anchor.getBoundingClientRect();
-    const size = 24;
-    const margin = 8;
-    const gap = 8;
-
-    button.hidden = rect.bottom < margin || rect.top > window.innerHeight - margin;
-    if (button.hidden) return true;
-
-    const hasLeftRoom = rect.left >= size + gap + margin;
-    const hasRightRoom = rect.right + size + gap <= window.innerWidth - margin;
-    if (!hasLeftRoom && !hasRightRoom) {
-      button.hidden = true;
-      return false;
-    }
-
-    let top = rect.top + rect.height / 2 - size / 2;
-    let left = hasLeftRoom ? rect.left - size - gap : rect.right + gap;
-
-    top = clamp(top, margin, window.innerHeight - size - margin);
-
-    button.style.top = `${Math.round(top)}px`;
-    button.style.left = `${Math.round(left)}px`;
-    return true;
-  }
-
-  function clamp(value, min, max) {
-    return Math.min(Math.max(value, min), max);
   }
 
   function mountFloatingButton(feeds) {
     if (!feeds.length || document.getElementById(BUTTON_ID)) return;
 
-    const button = createFeedButton(feeds, "");
+    const button = createFeedButton(feeds);
     button.id = BUTTON_ID;
     document.documentElement.append(button);
   }
 
-  function createFeedButton(feeds, className) {
+  function createFeedButton(feeds) {
     const button = document.createElement("button");
     button.type = "button";
-    if (className) button.className = className;
     button.title = feeds.length > 1 ? "Choose RSS feed with FeedLens" : "Open RSS with FeedLens";
     button.setAttribute("aria-label", button.title);
     button.innerHTML = `
@@ -364,22 +198,6 @@
     }
   }
 
-  function isVisibleElement(element) {
-    if (!hasVisibleStyle(element)) return false;
-    if (hasVisibleBox(element)) return true;
-    return [...element.querySelectorAll("svg, img, use")]
-      .some((child) => hasVisibleStyle(child) && hasVisibleBox(child));
-  }
-
-  function hasVisibleStyle(element) {
-    const style = getComputedStyle(element);
-    return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity || 1) > 0;
-  }
-
-  function hasVisibleBox(element) {
-    return [...element.getClientRects()].some((rect) => rect.width >= 1 && rect.height >= 1);
-  }
-
   function injectStyle() {
     if (document.getElementById(STYLE_ID)) return;
 
@@ -403,14 +221,12 @@
         color: #ffffff;
         box-shadow: 0 14px 34px rgba(242, 101, 34, 0.26);
         cursor: pointer;
-        animation: feedlens-discover-spin-rest 6.8s ease-in-out 0.8s infinite;
         transition: border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
       }
       #${BUTTON_ID}:hover {
         border-color: #e65a1a;
         background: #e65a1a;
         color: #ffffff;
-        animation-play-state: paused;
         transform: translateY(-1px);
       }
       #${BUTTON_ID}:focus-visible {
@@ -420,42 +236,6 @@
       #${BUTTON_ID} svg {
         width: 22px;
         height: 22px;
-      }
-      .${BRAND_BUTTON_CLASS} {
-        position: fixed;
-        z-index: 2147483647;
-        display: inline-grid;
-        place-items: center;
-        width: 24px;
-        height: 24px;
-        padding: 0;
-        border: 1px solid rgba(242, 101, 34, 0.22);
-        border-radius: 999px;
-        background: #f26522;
-        color: #ffffff !important;
-        box-shadow: 0 6px 16px rgba(242, 101, 34, 0.24), 0 1px 3px rgba(42, 34, 27, 0.18);
-        font: 13px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        cursor: pointer;
-        animation: feedlens-discover-spin-rest 6.8s ease-in-out 0.8s infinite;
-        transform-origin: center;
-        transition: border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease, color 0.16s ease, transform 0.16s ease;
-      }
-      .${BRAND_BUTTON_CLASS}:hover {
-        border-color: rgba(230, 90, 26, 0.36);
-        background: #e65a1a;
-        color: #ffffff !important;
-        animation-play-state: paused;
-        transform: translateY(-1px);
-        box-shadow: 0 8px 18px rgba(242, 101, 34, 0.28), 0 1px 4px rgba(42, 34, 27, 0.2);
-      }
-      .${BRAND_BUTTON_CLASS}:focus-visible {
-        outline: 2px solid rgba(242, 101, 34, 0.52);
-        outline-offset: 3px;
-      }
-      .${BRAND_BUTTON_CLASS} svg {
-        width: 15px;
-        height: 15px;
-        transform: translate(0, -1px);
       }
       #${MENU_ID} {
         position: fixed;
@@ -514,30 +294,8 @@
         color: #6b6f73;
         font-size: 11px;
       }
-      @keyframes feedlens-discover-spin-rest {
-        0%, 68%, 100% {
-          transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
-          box-shadow: 0 0 0 0 rgba(242, 101, 34, 0);
-          filter: saturate(1);
-        }
-        72% {
-          transform: translate3d(0, -1px, 0) rotate(0deg) scale(1.06);
-          box-shadow: 0 0 0 5px rgba(242, 101, 34, 0.1);
-          filter: saturate(1.12);
-        }
-        82% {
-          transform: translate3d(0, -1px, 0) rotate(360deg) scale(1.06);
-          box-shadow: 0 8px 18px rgba(242, 101, 34, 0.18), 0 0 0 7px rgba(242, 101, 34, 0.12);
-        }
-        88% {
-          transform: translate3d(0, 0, 0) rotate(360deg) scale(1);
-          box-shadow: 0 0 0 0 rgba(242, 101, 34, 0);
-        }
-      }
       @media (prefers-reduced-motion: reduce) {
-        #${BUTTON_ID},
-        .${BRAND_BUTTON_CLASS} {
-          animation: none;
+        #${BUTTON_ID} {
           transition: none;
         }
       }
