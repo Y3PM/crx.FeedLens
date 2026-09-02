@@ -153,3 +153,88 @@ test("shouldTryReader rejects expanded non-feed resource formats", () => {
   assert.equal(shouldTryReader("https://example.com/rss/archive.tar.gz"), false);
   assert.equal(shouldTryReader("https://example.com/feed/report.xlsx"), false);
 });
+
+test("verified real-world feeds are correctly accepted by shouldTryReaderByHeaders", () => {
+  const verifiedFeeds = [
+    {
+      url: "https://www.v2ex.com/index.xml",
+      contentType: "application/atom+xml;charset=UTF-8"
+    },
+    {
+      url: "https://github.blog/feed/",
+      contentType: "application/rss+xml; charset=UTF-8"
+    },
+    {
+      url: "https://sspai.com/feed",
+      contentType: "application/xml; charset=UTF-8"
+    },
+    {
+      url: "https://www.theverge.com/rss/index.xml",
+      contentType: "application/xml; charset=UTF-8"
+    },
+    {
+      url: "https://feeds.bbci.co.uk/news/rss.xml",
+      contentType: "text/xml; charset=utf-8"
+    },
+    {
+      url: "https://www.ruanyifeng.com/blog/atom.xml",
+      contentType: "application/xml"
+    },
+    {
+      url: "https://pyrsshub.vercel.app/feeds",
+      contentType: "application/xml; charset=utf-8"
+    }
+  ];
+
+  verifiedFeeds.forEach(({ url, contentType }) => {
+    assert.equal(
+      shouldTryReaderByHeaders({
+        tabId: 10,
+        url,
+        statusCode: 200,
+        responseHeaders: [{ name: "content-type", value: contentType }]
+      }),
+      true,
+      `Expected ${url} to be accepted as a feed`
+    );
+  });
+});
+
+test("verified real-world non-feeds are correctly rejected by shouldTryReader and shouldTryReaderByHeaders", () => {
+  const verifiedNonFeeds = [
+    {
+      url: "https://img.shields.io/badge/Format-4%20Days%20Intensive%20Camp-orange?style=flat-square",
+      contentType: "image/svg+xml;charset=utf-8"
+    },
+    {
+      url: "https://github.blog/sitemap.xml",
+      contentType: "application/xml; charset=UTF-8"
+    },
+    {
+      url: "https://sspai.com/sitemap.xml",
+      contentType: "application/xml; charset=UTF-8"
+    },
+    {
+      url: "https://www.linkedin.com/feed",
+      contentType: "text/html; charset=utf-8"
+    },
+    {
+      url: "https://docs.rsshub.app/guide/",
+      contentType: "text/html; charset=utf-8"
+    }
+  ];
+
+  verifiedNonFeeds.forEach(({ url, contentType }) => {
+    assert.equal(shouldTryReader(url), false, `Expected ${url} to be rejected by shouldTryReader`);
+    assert.equal(
+      shouldTryReaderByHeaders({
+        tabId: 10,
+        url,
+        statusCode: 200,
+        responseHeaders: [{ name: "content-type", value: contentType }]
+      }),
+      false,
+      `Expected ${url} to be rejected by shouldTryReaderByHeaders`
+    );
+  });
+});
