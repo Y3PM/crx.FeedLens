@@ -36,11 +36,14 @@
       /(?:^|[\s_-])(rss|atom|opml)(?:$|[\s_-])/.test(identifier);
   }
 
+  const NON_FEED_XML_PATTERN = /(?:^|\/|_)sitemap(?:[\-_][^/]+)?\.xml$|(?:\/|^)(?:pom|build|web|package|androidmanifest|crossdomain|clientaccesspolicy)\.xml$/i;
+
   function isFeedDocumentHref(rawHref) {
     try {
       const url = new URL(String(rawHref || ""), "https://feedlens.invalid");
       if (url.protocol !== "http:" && url.protocol !== "https:") return false;
       const pathname = url.pathname;
+      if (NON_FEED_XML_PATTERN.test(pathname)) return false;
       return /\.(?:rss|atom|opml|xml)$/i.test(pathname);
     } catch {
       return false;

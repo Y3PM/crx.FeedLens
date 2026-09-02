@@ -1305,8 +1305,8 @@
             </div>
           </dl>
           <div class="br-error-actions">
-            <a class="br-error-primary" href="${escapeAttr(sourceUrl)}">Back to site</a>
-            <a class="br-error-secondary" href="${escapeAttr(rawUrl)}" target="_blank" rel="noreferrer noopener">Open raw URL</a>
+            <a class="br-error-primary" href="${escapeAttr(rawUrl)}">Open original URL</a>
+            <a class="br-error-secondary" href="${escapeAttr(sourceUrl)}">Back to site</a>
           </div>
         </section>
       </main>

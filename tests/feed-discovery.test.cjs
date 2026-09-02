@@ -71,3 +71,9 @@ test("rejects RSS labels pointing to non-web protocols", () => {
   assert.equal(isDeclaredFeedAnchor({ href: "javascript:atom.xml", text: "RSS" }), false);
   assert.equal(isDeclaredFeedAnchor({ href: "file:///Users/example/atom.xml", text: "RSS" }), false);
 });
+
+test("rejects sitemaps and build config xmls even when containing an RSS label", () => {
+  assert.equal(isDeclaredFeedAnchor({ href: "/sitemap.xml", text: "RSS & Sitemap" }), false);
+  assert.equal(isDeclaredFeedAnchor({ href: "/sitemap_index.xml", text: "RSS" }), false);
+  assert.equal(isDeclaredFeedAnchor({ href: "/pom.xml", text: "RSS" }), false);
+});
